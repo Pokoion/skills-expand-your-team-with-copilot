@@ -501,7 +501,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Create activity tag
     const tagHtml = `
-      <span class="activity-tag" style="background-color: ${typeInfo.color}; color: ${typeInfo.textColor}">
+      <span class="activity-tag" data-type="${activityType}" style="background-color: ${typeInfo.color}; color: ${typeInfo.textColor}">
         ${typeInfo.label}
       </span>
     `;
@@ -860,6 +860,31 @@ document.addEventListener("DOMContentLoaded", () => {
     setDayFilter,
     setTimeRangeFilter,
   };
+
+  // Dark mode toggle
+  const darkModeToggle = document.getElementById("dark-mode-toggle");
+
+  function applyTheme(isDark) {
+    document.documentElement.setAttribute(
+      "data-theme",
+      isDark ? "dark" : "light"
+    );
+    darkModeToggle.textContent = isDark ? "☀️" : "🌙";
+    const label = isDark ? "Switch to light mode" : "Switch to dark mode";
+    darkModeToggle.title = label;
+    darkModeToggle.setAttribute("aria-label", label);
+  }
+
+  // Load saved preference or default to light
+  const savedTheme = localStorage.getItem("theme");
+  applyTheme(savedTheme === "dark");
+
+  darkModeToggle.addEventListener("click", () => {
+    const isDark =
+      document.documentElement.getAttribute("data-theme") !== "dark";
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+    applyTheme(isDark);
+  });
 
   // Initialize app
   checkAuthentication();
