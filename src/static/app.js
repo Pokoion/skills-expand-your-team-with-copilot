@@ -568,6 +568,10 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `
         }
+        <button class="share-button" aria-label="Share this activity">
+          <span>📤</span>
+          <span>Share</span>
+        </button>
       </div>
     `;
 
@@ -586,6 +590,12 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add click handler for share button
+    const shareButton = activityCard.querySelector(".share-button");
+    shareButton.addEventListener("click", (e) => {
+      showShareOptions(name, details, e.currentTarget);
+    });
 
     activitiesList.appendChild(activityCard);
   }
@@ -797,6 +807,134 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     );
+  }
+
+  // Copy text using clipboard API with execCommand fallback
+  function copyToClipboard(text) {
+    if (navigator.clipboard) {
+      return navigator.clipboard.writeText(text);
+    }
+    // Fallback for browsers without clipboard API
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return Promise.resolve();
+    } catch (err) {
+      document.body.removeChild(textArea);
+      return Promise.reject(err);
+    }
+  }
+
+  // Show sharing options panel for an activity
+  function showShareOptions(activityName, details, buttonEl) {
+    const shareUrl = window.location.href.split("?")[0].split("#")[0];
+    const scheduleText = formatSchedule(details);
+    const shareText = `Check out ${activityName} at Mergington High School! ${details.description} Schedule: ${scheduleText}`;
+
+    // Use native Web Share API on supported devices (e.g. mobile)
+    if (navigator.share) {
+      navigator
+        .share({
+          title: `${activityName} - Mergington High School`,
+          text: shareText,
+          url: shareUrl,
+        })
+        .catch((err) => {
+          if (err.name !== "AbortError") {
+            console.error("Error sharing:", err);
+          }
+        });
+      return;
+    }
+
+    // Remove any existing share panel (toggle closed if same button)
+    const existingPanel = document.getElementById("share-panel");
+    if (existingPanel) {
+      existingPanel.remove();
+      if (existingPanel.dataset.activity === activityName) {
+        return;
+      }
+    }
+
+    const encodedText = encodeURIComponent(shareText);
+    const encodedUrl = encodeURIComponent(shareUrl);
+
+    const panel = document.createElement("div");
+    panel.id = "share-panel";
+    panel.className = "share-panel";
+    panel.dataset.activity = activityName;
+    panel.innerHTML = `
+      <div class="share-panel-header">
+        <span>Share "${activityName}"</span>
+        <button class="share-panel-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="share-options">
+        <button class="share-option copy-link-btn">
+          <span class="share-icon">🔗</span>
+          <span>Copy Link</span>
+        </button>
+        <a class="share-option" href="https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}" target="_blank" rel="noopener noreferrer" aria-label="Share on Twitter / X">
+          <span class="share-icon">🐦</span>
+          <span>Twitter / X</span>
+        </a>
+        <a class="share-option" href="https://wa.me/?text=${encodedText}%20${encodedUrl}" target="_blank" rel="noopener noreferrer" aria-label="Share on WhatsApp">
+          <span class="share-icon">💬</span>
+          <span>WhatsApp</span>
+        </a>
+        <a class="share-option" href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" target="_blank" rel="noopener noreferrer" aria-label="Share on Facebook">
+          <span class="share-icon">👍</span>
+          <span>Facebook</span>
+        </a>
+      </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    // Position panel below the share button
+    const rect = buttonEl.getBoundingClientRect();
+    const panelWidth = 210;
+    let left = rect.left + window.scrollX;
+    if (left + panelWidth > window.innerWidth) {
+      left = window.innerWidth - panelWidth - 10;
+    }
+    panel.style.top = `${rect.bottom + window.scrollY + 5}px`;
+    panel.style.left = `${left}px`;
+
+    // Close button handler
+    panel.querySelector(".share-panel-close").addEventListener("click", (e) => {
+      e.stopPropagation();
+      panel.remove();
+    });
+
+    // Copy link handler
+    panel.querySelector(".copy-link-btn").addEventListener("click", () => {
+      copyToClipboard(shareUrl)
+        .then(() => {
+          showMessage("Link copied to clipboard!", "success");
+        })
+        .catch(() => {
+          showMessage("Could not copy link automatically.", "error");
+        });
+      panel.remove();
+    });
+
+    // Close panel when clicking outside
+    const closeOnOutsideClick = (e) => {
+      if (!panel.contains(e.target) && !buttonEl.contains(e.target)) {
+        panel.remove();
+        document.removeEventListener("click", closeOnOutsideClick);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener("click", closeOnOutsideClick);
+    }, 0);
   }
 
   // Show message function
